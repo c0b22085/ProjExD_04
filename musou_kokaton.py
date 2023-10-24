@@ -6,8 +6,8 @@ import time
 import pygame as pg
  
 
-WIDTH = 1600  # ゲームウィンドウの幅
-HEIGHT = 900  # ゲームウィンドウの高さ
+WIDTH = 1000  # ゲームウィンドウの幅
+HEIGHT = 600      # ゲームウィンドウの高さ
 
 
 def check_bound(obj: pg.Rect) -> tuple[bool, bool]:
@@ -267,6 +267,40 @@ class Score:
         screen.blit(self.image, self.rect)
 
 
+
+class Gravity(pg.sprite.Sprite):
+    """
+    こうかとんを中心に重量球を発生させる
+    """
+    def __init__(self, bird: Bird, size: int, life: int):
+
+        """
+        重力球Surfaceを生成する
+        引数1 bird：対象のこうかとん
+        引数2 size：重力球の半径
+        引数3 life：発動時間
+        """
+        super().__init__()
+        self.size = size
+        self.life = life
+        self.image = pg.Surface((2 * size, 2 * size), pg.SRCALPHA)
+        pg.draw.circle(self.image, (0, 0, 0, 100), (size, size), size)
+        self.rect = self.image.get_rect()
+        self.rect.center = bird.rect.center
+
+    def update(self, screen):
+        """
+        重力球の発動時間を1減算し、0未満になったらkill
+        """
+        self.life -= 1
+        if self.life < 0:
+            self.kill()
+        else:
+            screen.blit(self.image, self.rect)
+
+
+
+
 def main():
     pg.display.set_caption("真！こうかとん無双")
     screen = pg.display.set_mode((WIDTH, HEIGHT))
@@ -279,7 +313,15 @@ def main():
     exps = pg.sprite.Group()
     emys = pg.sprite.Group()
 
+    gravity = pg.sprite.Group() 
+    #gravity = None #GravityクラスのインスタンスをNoneで初期化
+    tab_key_pressed = False
+    
+
+
+
     tmr = 0
+
     clock = pg.time.Clock()
     while True:
         key_lst = pg.key.get_pressed()
@@ -287,12 +329,26 @@ def main():
             if event.type == pg.QUIT:
                 return 0
             if event.type == pg.KEYDOWN and event.key == pg.K_SPACE:
+
+                beams.add(Beam(bird))
+            if event.type == pg.KEYDOWN and event.key == pg.K_TAB and score.score >= 5:
+                gravity.add(Gravity(bird, 200, 500))
+                #gravity = Gravity(bird, 200, 500)
+                #gravity_group.add(gravity)
+                score.score_up(-5) #50スコア消費する
+                tab_key_pressed = True #タブキーが押されたことを記録
+        if event.type == pg.KEYUP:
+            #タブキーのリリースを検出
+            if event.key == pg.K_TAB:
+                tab_key_pressed = False #タブキーがリリースされたことを記録
+
                 if key_lst[pg.K_LSHIFT]:
                     nb = NeoBeam(bird,5)
                     beams.add(nb.gen_beams())
                 else:
                     beams.add(Beam(bird, 0))
                     
+
 
         screen.blit(bg_img, [0, 0])
 
@@ -303,22 +359,58 @@ def main():
             if emy.state == "stop" and tmr%emy.interval == 0:
                 # 敵機が停止状態に入ったら，intervalに応じて爆弾投下
                 bombs.add(Bomb(emy, bird))
+                
 
         for emy in pg.sprite.groupcollide(emys, beams, True, True).keys():
             exps.add(Explosion(emy, 100))  # 爆発エフェクト
             score.score_up(10)  # 10点アップ
             bird.change_img(6, screen)  # こうかとん喜びエフェクト
+            
 
         for bomb in pg.sprite.groupcollide(bombs, beams, True, True).keys():
             exps.add(Explosion(bomb, 50))  # 爆発エフェクト
             score.score_up(1)  # 1点アップ
+            
+
+
+        for gravity_group in gravity:
+            for bomb in pg.sprite.groupcollide(bombs, None, False, None).keys():
+                if pg.sprite.collide_circle(bomb, gravity):
+                    exps.add(Explosion(bomb, 50))  # 爆発エフェクト
+                    score.score_up(1)  # 1点アップ 
+                    
+
+        if len(pg.sprite.spritecollide(bird, bombs, True)) != 0: 
 
         if len(pg.sprite.spritecollide(bird, bombs, True)) != 0:
+
             bird.change_img(8, screen) # こうかとん悲しみエフェクト
             score.update(screen)
             pg.display.update()
             time.sleep(2)
             return
+
+        
+        if len(pg.sprite.spritecollide(bird, emys, True))!= 0: 
+            bird.change_img(8, screen) # こうかとん悲しみエフェクト
+            score.update(screen)
+            pg.display.update()
+            time.sleep(2)
+            return 
+        
+        #タブキーが押された場合の処理を追加
+        #if tab_key_pressed:
+            if gravity is None:
+                gravity = Gravity(bird, 200, 500)
+                gravity_group.add(gravity)
+                score.score_up(-50) #50スコア消費する
+                tab_key_pressed = True #タブキーが押されたことを記録
+
+        #if gravity:    
+            gravity.update()
+        
+
+
 
         bird.update(key_lst, screen)
         beams.update()
@@ -329,6 +421,11 @@ def main():
         bombs.draw(screen)
         exps.update()
         exps.draw(screen)
+
+        gravity.update(screen)
+        gravity.draw(screen)
+
+
         score.update(screen)
         pg.display.update()
         tmr += 1
