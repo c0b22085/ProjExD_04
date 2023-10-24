@@ -4,7 +4,7 @@ import sys
 import time
 
 import pygame as pg
-
+ 
 
 WIDTH = 1000  # ゲームウィンドウの幅
 HEIGHT = 600      # ゲームウィンドウの高さ
@@ -145,7 +145,7 @@ class Beam(pg.sprite.Sprite):
     """
     ビームに関するクラス
     """
-    def __init__(self, bird: Bird):
+    def __init__(self, bird: Bird, angle_nb):
         """
         ビーム画像Surfaceを生成する
         引数 bird：ビームを放つこうかとん
@@ -153,6 +153,7 @@ class Beam(pg.sprite.Sprite):
         super().__init__()
         self.vx, self.vy = bird.get_direction()
         angle = math.degrees(math.atan2(-self.vy, self.vx))
+        angle = angle + angle_nb
         self.image = pg.transform.rotozoom(pg.image.load(f"ex04/fig/beam.png"), angle, 2.0)
         self.vx = math.cos(math.radians(angle))
         self.vy = -math.sin(math.radians(angle))
@@ -169,6 +170,23 @@ class Beam(pg.sprite.Sprite):
         self.rect.move_ip(+self.speed*self.vx, +self.speed*self.vy)
         if check_bound(self.rect) != (True, True):
             self.kill()
+
+
+class NeoBeam(pg.sprite.Sprite):
+    """
+    角度に応じたビームの追加
+    引数1 bird：ビームを放つこうかとん
+    引数2 num：数
+    """
+    def __init__(self, bird:Bird, num:int):
+        self.beams = []
+        self.bird = bird
+        self.num = num
+
+    def gen_beams(self):
+        for angle in range(-50, 51, int(100/(self.num-1))):
+           self.beams.append(Beam(self.bird, angle))
+        return self.beams
 
 
 class Explosion(pg.sprite.Sprite):
@@ -249,6 +267,7 @@ class Score:
         screen.blit(self.image, self.rect)
 
 
+
 class Gravity(pg.sprite.Sprite):
     """
     こうかとんを中心に重量球を発生させる
@@ -280,6 +299,8 @@ class Gravity(pg.sprite.Sprite):
             screen.blit(self.image, self.rect)
 
 
+
+
 def main():
     pg.display.set_caption("真！こうかとん無双")
     screen = pg.display.set_mode((WIDTH, HEIGHT))
@@ -291,10 +312,14 @@ def main():
     beams = pg.sprite.Group()
     exps = pg.sprite.Group()
     emys = pg.sprite.Group()
+
     gravity = pg.sprite.Group() 
     #gravity = None #GravityクラスのインスタンスをNoneで初期化
     tab_key_pressed = False
     
+
+
+
     tmr = 0
 
     clock = pg.time.Clock()
@@ -304,6 +329,7 @@ def main():
             if event.type == pg.QUIT:
                 return 0
             if event.type == pg.KEYDOWN and event.key == pg.K_SPACE:
+
                 beams.add(Beam(bird))
             if event.type == pg.KEYDOWN and event.key == pg.K_TAB and score.score >= 5:
                 gravity.add(Gravity(bird, 200, 500))
@@ -315,6 +341,14 @@ def main():
             #タブキーのリリースを検出
             if event.key == pg.K_TAB:
                 tab_key_pressed = False #タブキーがリリースされたことを記録
+
+                if key_lst[pg.K_LSHIFT]:
+                    nb = NeoBeam(bird,5)
+                    beams.add(nb.gen_beams())
+                else:
+                    beams.add(Beam(bird, 0))
+                    
+
 
         screen.blit(bg_img, [0, 0])
 
@@ -338,6 +372,7 @@ def main():
             score.score_up(1)  # 1点アップ
             
 
+
         for gravity_group in gravity:
             for bomb in pg.sprite.groupcollide(bombs, None, False, None).keys():
                 if pg.sprite.collide_circle(bomb, gravity):
@@ -346,11 +381,15 @@ def main():
                     
 
         if len(pg.sprite.spritecollide(bird, bombs, True)) != 0: 
+
+        if len(pg.sprite.spritecollide(bird, bombs, True)) != 0:
+
             bird.change_img(8, screen) # こうかとん悲しみエフェクト
             score.update(screen)
             pg.display.update()
             time.sleep(2)
             return
+
         
         if len(pg.sprite.spritecollide(bird, emys, True))!= 0: 
             bird.change_img(8, screen) # こうかとん悲しみエフェクト
@@ -370,6 +409,9 @@ def main():
         #if gravity:    
             gravity.update()
         
+
+
+
         bird.update(key_lst, screen)
         beams.update()
         beams.draw(screen)
@@ -379,8 +421,11 @@ def main():
         bombs.draw(screen)
         exps.update()
         exps.draw(screen)
+
         gravity.update(screen)
         gravity.draw(screen)
+
+
         score.update(screen)
         pg.display.update()
         tmr += 1
