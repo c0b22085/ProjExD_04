@@ -269,13 +269,15 @@ class Gravity(pg.sprite.Sprite):
         self.rect = self.image.get_rect()
         self.rect.center = bird.rect.center
 
-    def update(self):
+    def update(self, screen):
         """
         重力球の発動時間を1減算し、0未満になったらkill
         """
         self.life -= 1
         if self.life < 0:
             self.kill()
+        else:
+            screen.blit(self.image, self.rect)
 
 
 def main():
@@ -289,11 +291,11 @@ def main():
     beams = pg.sprite.Group()
     exps = pg.sprite.Group()
     emys = pg.sprite.Group()
-    gravity_group = pg.sprite.Group() #重力球を初期化
-    gravity = None
+    gravity = pg.sprite.Group() 
+    #gravity = None #GravityクラスのインスタンスをNoneで初期化
+    tab_key_pressed = False
     
     tmr = 0
-    tab_key_pressed = False
 
     clock = pg.time.Clock()
     while True:
@@ -303,11 +305,12 @@ def main():
                 return 0
             if event.type == pg.KEYDOWN and event.key == pg.K_SPACE:
                 beams.add(Beam(bird))
-            if event.type == pg.KEYDOWN and event.key == pg.K_TAB:
-                if score.score >= 50 and not tab_key_pressed:
-                    gravity = Gravity(bird, 200, 500)
-                    score.score_up(-50) #50スコア消費する
-                    tab_key_pressed = True #タブキーが押されたことを記録
+            if event.type == pg.KEYDOWN and event.key == pg.K_TAB and score.score >= 5:
+                gravity.add(Gravity(bird, 200, 500))
+                #gravity = Gravity(bird, 200, 500)
+                #gravity_group.add(gravity)
+                score.score_up(-5) #50スコア消費する
+                tab_key_pressed = True #タブキーが押されたことを記録
         if event.type == pg.KEYUP:
             #タブキーのリリースを検出
             if event.key == pg.K_TAB:
@@ -356,20 +359,17 @@ def main():
             time.sleep(2)
             return 
         
-        if gravity:
-            gravity.update()
-            gravity_group.add(gravity)
-
         #タブキーが押された場合の処理を追加
-        if tab_key_pressed and gravity is None:
-            gravity = Gravity(bird, 200, 500)
-            score.score_up(-50) #50スコア消費する
-            tab_key_pressed = True #タブキーが押されたことを記録
+        #if tab_key_pressed:
+            if gravity is None:
+                gravity = Gravity(bird, 200, 500)
+                gravity_group.add(gravity)
+                score.score_up(-50) #50スコア消費する
+                tab_key_pressed = True #タブキーが押されたことを記録
 
         #if gravity:    
-            #gravity.update()
-            #gravity_group.add(gravity)
-
+            gravity.update()
+        
         bird.update(key_lst, screen)
         beams.update()
         beams.draw(screen)
@@ -379,8 +379,8 @@ def main():
         bombs.draw(screen)
         exps.update()
         exps.draw(screen)
-        #gravity.update(screen)
-        #gravity_group.add(gravity)
+        gravity.update(screen)
+        gravity.draw(screen)
         score.update(screen)
         pg.display.update()
         tmr += 1
