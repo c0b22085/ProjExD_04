@@ -341,6 +341,7 @@ def main():
           
         for shield in shields:
             if len(pg.sprite.spritecollide(shield, bombs, True)) !=0:return
+            
                     
 
 
